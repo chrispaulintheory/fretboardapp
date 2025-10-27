@@ -77,12 +77,17 @@
     border-radius: 6px;
     padding: 6px 12px;
     font-size: 15px;
-    cursor: default;
+    cursor: pointer;
+    transition: all 0.15s ease;
   }
-  .btn-purple {
+  .game-controls button:hover {
+    background: #eee;
+  }
+  .game-controls button.active-press {
     background: #7e3ff2;
     color: #fff;
     border-color: #7e3ff2;
+    transform: scale(0.96);
   }
 </style>
 </head>
@@ -111,12 +116,12 @@
 
 <!-- Controls legend -->
 <div class="game-controls-wrapper text-center">
-  <div class="game-controls d-flex flex-wrap justify-content-center">
-    <button type="button" class="btn btn-purple" disabled>UNISON (1)</button>
-    <button type="button" class="btn btn-purple" disabled>PERFECT 4th (4)</button>
-    <button type="button" class="btn btn-purple" disabled>PERFECT 5th (5)</button>
-    <button type="button" class="btn btn-purple" disabled>TRITONE (T)</button>
-    <button type="button" class="btn btn-purple" disabled>OCTAVE (8)</button>
+  <div class="game-controls" id="controlButtons">
+    <button data-key="1">UNISON (1)</button>
+    <button data-key="4">PERFECT 4th (4)</button>
+    <button data-key="t">TRITONE (T)</button>
+    <button data-key="5">PERFECT 5th (5)</button>
+    <button data-key="8">OCTAVE (8)</button>
   </div>
 </div>
 
@@ -130,6 +135,7 @@ const scoreEl=document.getElementById('score');
 const feedback=document.getElementById('feedback');
 const levelButtons=document.querySelectorAll('.level-btn');
 const levelDesc=document.getElementById('levelDescription');
+const controlButtons=document.getElementById('controlButtons').querySelectorAll('button');
 
 const TOTAL_FRETS=22, GAME_SECONDS=120;
 const stringY={6:75,5:62,4:49,3:36,2:23,1:10};
@@ -161,6 +167,7 @@ function correctSpelling(low,high,semitones){
 let score=0,timeLeft=GAME_SECONDS,timer=null,gameActive=false;
 let currentInterval=null,s1=0,f1=0,s2=0,f2=0,n1='',n2='',level=1;
 
+/* ---------- Level Info ---------- */
 const levelInfo={
   1:"Level 1: Perfect intervals (P1, P4, P5, P8) and the Tritone (A4/D5) on E–A–D–G string set.",
   2:"Level 2: Perfect intervals (P1, P4, P5, P8) and the Tritone (A4/D5) on all six strings.",
@@ -207,16 +214,6 @@ function drawInterval(){
   const d1=document.createElement('div');d1.className='dot';d1.style.left=fretX(f1)+'%';d1.style.top=stringY[s1]+'%';
   const d2=document.createElement('div');d2.className='dot';d2.style.left=fretX(f2)+'%';d2.style.top=stringY[s2]+'%';
   board.append(d1,d2);
-
-  const aMidi=midiAt(s1,f1),bMidi=midiAt(s2,f2);
-  const lowPitch=aMidi<=bMidi?{s:s1,f:f1,name:n1,midi:aMidi}:{s:s2,f:f2,name:n2,midi:bMidi};
-  const highPitch=aMidi<=bMidi?{s:s2,f:f2,name:n2,midi:bMidi}:{s:s1,f:f1,name:n1,midi:aMidi};
-  const visuallyLower=lowPitch.s<highPitch.s?highPitch:lowPitch;
-  const visuallyHigher=lowPitch.s<highPitch.s?lowPitch:highPitch;
-  const semis=Math.abs(aMidi-bMidi);
-  let[lowName,highName]=correctSpelling(lowPitch.name,highPitch.name,semis);
-  const labels={p1:"P1",p4:"P4",p5:"P5",tt:"Tritone",p8:"P8"};
-  console.log(`Generated interval: ${labels[currentInterval]} → ${lowName}–${highName} (String ${visuallyLower.s}, fret ${visuallyLower.f}; String ${visuallyHigher.s}, fret ${visuallyHigher.f})`);
 }
 
 /* ---------- Feedback ---------- */
@@ -248,20 +245,39 @@ function startGame(){if(gameActive)return;score=0;scoreEl.textContent=score;time
 function endGame(){clearInterval(timer);timer=null;gameActive=false;feedback.textContent='⏰ Time’s up!';clearDots();resetBtn.style.display='inline-block';}
 function resetGame(){clearInterval(timer);timer=null;score=0;scoreEl.textContent=score;timeLeft=120;updateTimer();feedback.textContent='';clearDots();resetBtn.style.display='none';startBtn.style.display='inline-block';}
 
-/* ---------- Input ---------- */
-document.addEventListener('keydown',e=>{
+/* ---------- Input Logic (keyboard + buttons) ---------- */
+function handleAnswer(key){
   if(!gameActive)return;
   const expected=currentInterval==='p1'?'1':currentInterval==='p4'?'4':currentInterval==='p5'?'5':currentInterval==='tt'?'t':'8';
-  if(e.key.toLowerCase()===expected){
+  if(key===expected){
     score+=10;scoreEl.textContent=score;
-    const msg=`✅ Correct! ${feedbackTextForCurrent()}`;
-    feedback.textContent=msg;feedback.style.color='green';
+    feedback.textContent=`✅ Correct! ${feedbackTextForCurrent()}`;
+    feedback.style.color='green';
     setTimeout(()=>{feedback.textContent='';drawInterval();},900);
-  }else if(['1','4','5','t','8'].includes(e.key.toLowerCase())){
+  }else if(['1','4','5','t','8'].includes(key)){
     score-=5;scoreEl.textContent=score;
-    feedback.textContent='❌ Wrong';feedback.style.color='red';
+    feedback.textContent='❌ Wrong';
+    feedback.style.color='red';
   }
+}
+
+document.addEventListener('keydown',e=>{
+  const key=e.key.toLowerCase();
+  handleAnswer(key);
+  controlButtons.forEach(btn=>{
+    if(btn.dataset.key===key){btn.classList.add('active-press');setTimeout(()=>btn.classList.remove('active-press'),150);}
+  });
 });
+
+controlButtons.forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const key=btn.dataset.key;
+    btn.classList.add('active-press');
+    setTimeout(()=>btn.classList.remove('active-press'),150);
+    handleAnswer(key);
+  });
+});
+
 startBtn.addEventListener('click',startGame);
 resetBtn.addEventListener('click',resetGame);
 </script>
