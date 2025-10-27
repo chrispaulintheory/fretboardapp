@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Interval Trainer – Level 1 (Perfect Intervals on E/A/D/G)</title>
+<style>
+  :root{
+    --purple:#7c3aed;        /* note color */
+    --purple-dark:#5b21b6;   /* hover/active */
+    --ink:#0f172a;           /* text */
+    --muted:#cbd5e1;         /* lines */
+    --nut:#64748b;           /* nut line */
+    --bg:#ffffff;            /* white theme */
+  }
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,Helvetica,sans-serif;
+  }
+  .wrap{
+    max-width:950px; margin:28px auto; padding:0 16px;
+  }
+  h1{font-size:clamp(20px,3vw,28px); margin:0 0 8px}
+  .sub{color:#475569; margin:0 0 18px}
+  .topbar{
+    display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    margin:10px 0 16px;
+  }
+  .left, .right{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+  .btn{
+    appearance:none; border:1px solid #e2e8f0; background:#fff; color:var(--ink);
+    padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:600;
+    transition:transform .04s ease, box-shadow .2s ease, background .2s ease;
+    box-shadow:0 1px 0 rgba(15,23,42,.05);
+  }
+  .btn:hover{background:#f8fafc}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--purple); color:#fff; border-color:var(--purple)}
+  .btn.primary:hover{background:var(--purple-dark); border-color:var(--purple-dark)}
+
+  .scorebox{
+    display:flex; gap:16px; align-items:center; font-weight:700;
+  }
+  .badge{
+    display:inline-block; background:#f1f5f9; border:1px solid #e2e8f0; padding:6px 10px; border-radius:999px; font-weight:700;
+  }
+  .status{min-height:24px; font-weight:700}
+  .status.ok{color:#15803d}
+  .status.nope{color:#b91c1c}
+
+  /* Fretboard */
+  .board{
+    position:relative; width:100%; aspect-ratio: 26 / 6; /* nice wide board */
+    border:1px solid #e2e8f0; border-radius:14px; background:#fff;
+    overflow:hidden;
+  }
+  /* Grid cells (13 frets: 0..12, 4 strings: 6,5,4,3) */
+  .grid{
+    display:grid; height:100%; width:100%;
+    grid-template-columns:repeat(13, 1fr);
+    grid-template-rows:repeat(4, 1fr);
+  }
+  .cell{
+    position:relative; /* so we can center inside easily if needed */
+    border-left:1px solid var(--muted);
+  }
+  /* Nut (fret 0) thicker line */
+  .cell[data-fret="0"]{ border-left:3px solid var(--nut); }
+
+  /* Dots at 3,5,7,9,12 like a real neck (visual aid) */
+  .cell[data-fret="3"]::after,
+  .cell[data-fret="5"]::after,
+  .cell[data-fret="7"]::after,
+  .cell[data-fret="9"]::after{
+    content:""; position:absolute; left:50%; top:50%;
+    width:8px; height:8px; border-radius:50%;
+    background:#e2e8f0; transform:translate(-50%,-50%);
+    opacity:.9;
+  }
+  /* 12th fret double dots */
+  .cell[data-fret="12"]::before,
+  .cell[data-fret="12"]::after{
+    content:""; position:absolute; left:50%;
+    width:8px; height:8px; border-radius:50%; background:#e2e8f0; transform:translateX(-50%);
+    opacity:.9;
+  }
+  .cell[data-fret="12"]::before{ top:35%; }
+  .cell[data-fret="12"]::after{ top:65%; }
+
+  /* String lines (one per row) */
+  .string-line{
+    position:absolute; left:0; right:0; height:2px; background:#1f2937; opacity:.7;
+    transform:translateY(-1px);
+  }
+
+  /* Note circles */
+  .note{
+    position:absolute; width:22px; height:22px; border-radius:50%;
+    background:var(--purple);
+    box-shadow:0 4px 10px rgba(124,58,237,.25), inset 0 0 0 2px rgba(255,255,255,.6);
+    transform:translate(-50%,-50%);
+    pointer-events:none; /* clicks pass through to grid if needed */
+  }
+
+  /* Answer buttons */
+  .answers{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:16px 0 4px }
+  .answers .btn{min-width:130px}
+  .answers .btn.kbd::after{
+    content:attr(data-kbd);
+    font-weight:700; margin-left:.5ch; opacity:.65;
+  }
+
+  .footer-hint{color:#64748b; font-size:14px; text-align:center; margin-top:2px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Interval Trainer – Level 1</h1>
+    <p class="sub">Perfect intervals only (P1 / P4 / P5 / P8) on the low four strings: <b>E, A, D, G</b>.</p>
+
+    <div class="topbar">
+      <div class="left">
+        <button id="startBtn" class="btn primary">START</button>
+        <button id="resetBtn" class="btn">RESET</button>
+        <span class="badge">Strings in play: E, A, D, G</span>
+      </div>
+      <div class="right scorebox">
+        <span>Score:</span><span id="score" class="badge">0</span>
+      </div>
+    </div>
+
+    <div id="status" class="status" aria-live="polite"></div>
+
+    <!-- Fretboard -->
+    <div class="board" id="board">
+      <!-- String lines are placed dynamically -->
+      <div class="grid" id="grid"></div>
+      <!-- Note circles are placed dynamically -->
+    </div>
+
+    <!-- Answer buttons -->
+    <div class="answers">
+      <button class="btn kbd" data-answer="1" data-kbd="(1)">Perfect Unison</button>
+      <button class="btn kbd" data-answer="4" data-kbd="(4)">Perfect 4th</button>
+      <button class="btn kbd" data-answer="5" data-kbd="(5)">Perfect 5th</button>
+      <button class="btn kbd" data-answer="8" data-kbd="(8)">Octave</button>
+    </div>
+    <div class="footer-hint">Use keys 1 / 4 / 5 / 8 as hotkeys.</div>
+  </div>
+
+<script>
+/*
+  Level 1 rules:
+  - Only low four strings: 6 (E), 5 (A), 4 (D), 3 (G)
+  - Intervals: P1(0), P4(5), P5(7), P8(12)
+  - 13 frets total (0..12) so it stays readable & easy.
+  - Two purple circles: same string, centered over fret spaces.
+*/
+
+const STRINGS = [6,5,4,3];           // low 4 strings
+const TOTAL_FRETS = 13;              // 0..12
+const INTERVALS = {
+  1:{ name:"Perfect Unison", semitones:0 },
+  4:{ name:"Perfect 4th",   semitones:5 },
+  5:{ name:"Perfect 5th",   semitones:7 },
+  8:{ name:"Octave",        semitones:12 }
+};
+
+const board = document.getElementById('board');
+const grid  = document.getElementById('grid');
+const startBtn = document.getElementById('startBtn');
+const resetBtn = document.getElementById('resetBtn');
+const scoreEl = document.getElementById('score');
+const statusEl = document.getElementById('status');
+
+let score = 0;
+let currentRound = null; // {string, startFret, targetFret, intervalKey}
+let noteNodes = [];      // track current .note elements for cleanup
+
+// Build grid cells: rows = 4 (strings), cols = 13 (frets)
+(function buildGrid(){
+  for(let r=0; r<STRINGS.length; r++){
+    for(let f=0; f<TOTAL_FRETS; f++){
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.string = STRINGS[r]; // 6,5,4,3
+      cell.dataset.fret = f;            // 0..12
+      grid.appendChild(cell);
+    }
+  }
+})();
+
+// Draw four string lines across the board
+function drawStringLines(){
+  // remove any existing
+  [...board.querySelectorAll('.string-line')].forEach(n=>n.remove());
+  const rect = grid.getBoundingClientRect();
+  const rows = STRINGS.length;
+  for(let r=0; r<rows; r++){
+    const y = ((r + 0.5) / rows) * board.clientHeight; // center of row
+    const line = document.createElement('div');
+    line.className = 'string-line';
+    line.style.top = `${y}px`;
+    line.style.height = (r===0?2.5:(r===rows-1?2.5:2)) + 'px'; // subtle variety
+    board.appendChild(line);
+  }
+}
+new ResizeObserver(drawStringLines).observe(board);
+window.addEventListener('load', drawStringLines);
+
+// Utility: get a cell element by string+fret
+function getCell(stringNumber, fretNumber){
+  return grid.querySelector(`.cell[data-string="${stringNumber}"][data-fret="${fretNumber}"]`);
+}
+
+// Utility: get the pixel center of a cell, relative to board
+function getCellCenter(cell){
+  const bRect = board.getBoundingClientRect();
+  const cRect = cell.getBoundingClientRect();
+  const x = cRect.left - bRect.left + cRect.width/2;
+  const y = cRect.top  - bRect.top  + cRect.height/2;
+  return {x,y};
+}
+
+// Place a purple note circle on a given string/fret
+function placeNote(stringNumber, fretNumber, offsetX=0, offsetY=0){
+  const cell = getCell(stringNumber, fretNumber);
+  if(!cell) return null;
+  const {x,y} = getCellCenter(cell);
+  const n = document.createElement('div');
+  n.className = 'note';
+  n.style.left = `${x + offsetX}px`;
+  n.style.top  = `${y + offsetY}px`;
+  board.appendChild(n);
+  noteNodes.push(n);
+  return n;
+}
+
+// Clear current notes and status
+function clearBoardVisuals(){
+  noteNodes.forEach(n=>n.remove());
+  noteNodes = [];
+  statusEl.textContent = '';
+  statusEl.className = 'status';
+}
+
+// Start a new round
+function startRound(){
+  clearBoardVisuals();
+
+  // Pick interval key randomly among 1,4,5,8
+  const keys = Object.keys(INTERVALS); // ["1","4","5","8"]
+  const intervalKey = keys[Math.floor(Math.random()*keys.length)];
+  const semis = INTERVALS[intervalKey].semitones;
+
+  // Pick a string from low four
+  const string = STRINGS[Math.floor(Math.random()*STRINGS.length)];
+
+  // Choose starting fret so target fits within range 0..12
+  const maxStart = TOTAL_FRETS - 1 - semis; // because fret count is 0..12
+  const startFret = Math.floor(Math.random() * Math.max(1, (maxStart+1))); // inclusive 0..maxStart
+
+  const targetFret = startFret + semis;
+
+  // Place two purple notes. If unison, offset slightly so you can see two dots.
+  if(semis === 0){
+    placeNote(string, startFret, -7, 0);
+    placeNote(string, targetFret, +7, 0);
+  }else{
+    placeNote(string, startFret);
+    placeNote(string, targetFret);
+  }
+
+  currentRound = { string, startFret, targetFret, intervalKey };
+  statusEl.textContent = 'Pick the interval…';
+}
+
+// Answer handling
+function handleAnswer(answerKey){
+  if(!currentRound) return;
+  const correct = String(answerKey) === String(currentRound.intervalKey);
+  if(correct){
+    score += 25;
+    statusEl.textContent = 'RIGHT!';
+    statusEl.className = 'status ok';
+    // brief pause then next round
+    setTimeout(startRound, 550);
+  }else{
+    score = Math.max(0, score - 10);
+    statusEl.textContent = 'NOPE!';
+    statusEl.className = 'status nope';
+  }
+  scoreEl.textContent = String(score);
+}
+
+// Bind UI
+document.querySelectorAll('.answers .btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>handleAnswer(btn.dataset.answer));
+});
+
+startBtn.addEventListener('click', ()=>{
+  if(!currentRound) score = 0;
+  scoreEl.textContent = String(score);
+  startRound();
+});
+
+resetBtn.addEventListener('click', ()=>{
+  score = 0;
+  scoreEl.textContent = '0';
+  currentRound = null;
+  clearBoardVisuals();
+});
+
+// Keyboard shortcuts: 1=P1, 4=P4, 5=P5, 8=P8
+window.addEventListener('keydown', (e)=>{
+  if(['1','4','5','8'].includes(e.key)){
+    handleAnswer(e.key);
+  }
+});
+
+</script>
+</body>
+</html>

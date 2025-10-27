@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Theory & The Fretboard</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background-color: #0d1117;
+      color: #e6edf3;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    header {
+      background: #161b22;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #30363d;
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      margin: 0;
+      color: #e6edf3;
+    }
+
+    nav {
+      display: flex;
+      gap: 1rem;
+    }
+
+    nav button {
+      background: none;
+      border: none;
+      color: #e6edf3;
+      font-size: 0.95rem;
+      cursor: pointer;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+
+    nav button.active, nav button:hover {
+      background: #238636;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .theory {
+      flex: 1;
+      padding: 1rem;
+      border-bottom: 1px solid #30363d;
+    }
+
+    .controls {
+      margin-bottom: 1rem;
+    }
+
+    label {
+      margin-right: 0.25rem;
+    }
+
+    select {
+      background: #161b22;
+      color: #e6edf3;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 0.3rem 0.6rem;
+      margin-right: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .scale-images {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .minor-pair {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      width: 100%;
+      flex-wrap: wrap;
+    }
+
+    img.scale {
+      background-color: #fff;
+      border-radius: 6px;
+      padding: 0.5rem;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .placeholder {
+      background: repeating-linear-gradient(
+        45deg,
+        #30363d,
+        #30363d 10px,
+        #161b22 10px,
+        #161b22 20px
+      );
+      color: #8b949e;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-style: italic;
+      min-height: 150px;
+      border-radius: 6px;
+      padding: 0.5rem;
+    }
+
+    .fretboard {
+      background: #0f141a;
+      padding: 1rem;
+    }
+
+    .fretboard h2 {
+      margin-top: 0;
+      font-size: 1.2rem;
+      color: #58a6ff;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Music Theory & The Fretboard</h1>
+    <nav>
+      <button class="level active" data-level="1">Level 1: Power Chords</button>
+      <button class="level" data-level="2">Level 2: Triads</button>
+      <button class="level" data-level="3">Level 3: 7ths</button>
+      <button class="level" data-level="4">Level 4: Jazz Chords</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="theory">
+      <div class="controls">
+        <label for="majorSelect">Major Key:</label>
+        <select id="majorSelect">
+          <option value=""></option>
+          <option value="C">C</option>
+          <option value="G">G</option>
+          <option value="D">D</option>
+          <option value="A">A</option>
+          <option value="E">E</option>
+          <option value="B">B</option>
+          <option value="F#">F♯</option>
+          <option value="Gb">G♭</option>
+          <option value="C#">C♯</option>
+          <option value="Db">D♭</option>
+          <option value="F">F</option>
+          <option value="Bb">B♭</option>
+          <option value="Eb">E♭</option>
+          <option value="Ab">A♭</option>
+        </select>
+
+        <label for="minorSelect">Minor Key:</label>
+        <select id="minorSelect">
+          <option value=""></option>
+          <option value="A">A</option>
+          <option value="E">E</option>
+          <option value="B">B</option>
+          <option value="F#">F♯</option>
+          <option value="C#">C♯</option>
+          <option value="G#">G♯</option>
+          <option value="D#">D♯</option>
+          <option value="A#">A♯</option>
+          <option value="D">D</option>
+          <option value="G">G</option>
+          <option value="C">C</option>
+          <option value="F">F</option>
+        </select>
+      </div>
+
+      <div class="scale-images">
+        <img id="majorScale" class="scale" src="c-major-scale.png" alt="C Major Scale" />
+
+        <div class="minor-pair">
+          <div id="relativeMinor" class="placeholder">Relative Minor Scale Placeholder</div>
+          <div id="parallelMinor" class="placeholder">Parallel Minor Scale Placeholder</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="fretboard">
+      <h2>Fretboard Visualization</h2>
+      <p>(Interactive fretboard view coming soon)</p>
+    </section>
+  </main>
+
+  <script>
+    const levelButtons = document.querySelectorAll('.level');
+    levelButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        levelButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    const majorSelect = document.getElementById('majorSelect');
+    const minorSelect = document.getElementById('minorSelect');
+    const majorScale = document.getElementById('majorScale');
+    const relativeMinor = document.getElementById('relativeMinor');
+    const parallelMinor = document.getElementById('parallelMinor');
+
+    // Major → Relative Minor mapping
+    const relativeMinors = {
+      'C': 'A',
+      'G': 'E',
+      'D': 'B',
+      'A': 'F#',
+      'E': 'C#',
+      'B': 'G#',
+      'F#': 'D#',
+      'C#': 'A#',
+      'F': 'D',
+      'Bb': 'G',
+      'Eb': 'C',
+      'Ab': 'F',
+      'Db': 'Bb',
+      'Gb': 'Eb',
+      'Cb': 'Ab'
+    };
+
+    function normalizeKeyForFilename(key) {
+      return key
+        .replace('#', '-sharp')
+        .replace('b', '-flat')
+        .toLowerCase();
+    }
+
+    function updateScales(key, type) {
+      if (!key) return;
+
+      // Main major scale
+      const majorFilename = `${normalizeKeyForFilename(key)}-${type}-scale.png`;
+      majorScale.src = majorFilename;
+      majorScale.alt = `${key} ${type} scale`;
+
+      // Get relative minor
+      const relMinor = relativeMinors[key];
+      if (relMinor) {
+        const relFilename = `${normalizeKeyForFilename(relMinor)}-minor-scale-relative.png`;
+        relativeMinor.classList.remove('placeholder');
+        relativeMinor.innerHTML = `<img class="scale" src="${relFilename}" alt="${relMinor} Minor Scale (Relative)" />`;
+      } else {
+        relativeMinor.classList.add('placeholder');
+        relativeMinor.textContent = 'Relative Minor Scale Placeholder';
+      }
+
+      // Parallel minor
+      const parFilename = `${normalizeKeyForFilename(key)}-minor-scale-parallel.png`;
+      parallelMinor.classList.remove('placeholder');
+      parallelMinor.innerHTML = `<img class="scale" src="${parFilename}" alt="${key} Minor Scale (Parallel)" />`;
+    }
+
+    majorSelect.addEventListener('change', () => {
+      if (majorSelect.value) {
+        updateScales(majorSelect.value, 'major');
+        minorSelect.selectedIndex = 0;
+      }
+    });
+
+    minorSelect.addEventListener('change', () => {
+      if (minorSelect.value) {
+        updateScales(minorSelect.value, 'minor');
+        majorSelect.selectedIndex = 0;
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      updateScales('C', 'major');
+    });
+  </script>
+</body>
+</html>

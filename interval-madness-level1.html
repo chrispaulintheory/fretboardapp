@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Intervals</title>
+<style>
+  body {
+    margin: 0;
+    background: #fff;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  h2 { margin: 16px 12px 6px; }
+
+  /* Level buttons row */
+  #levelButtons {
+    display: flex; gap: 10px; margin: 8px 0 16px;
+  }
+  .level-btn {
+    background: #ccc; color: #333; border: 0; border-radius: 6px;
+    padding: 8px 14px; font-size: 16px; cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .level-btn:hover { background: #bbb; }
+  .level-btn.active {
+    background: #7e3ff2; color: #fff;
+    transform: scale(1.05);
+  }
+
+  #controls {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    justify-content: center; margin: 6px 0 10px;
+  }
+  button {
+    background: #7e3ff2; color: #fff; border: 0; border-radius: 8px;
+    padding: 10px 18px; font-size: 16px; cursor: pointer;
+  }
+  button:hover { filter: brightness(.95); }
+  #resetBtn { display: none; background: #888; }
+  #timer { font-weight: 700; }
+  #feedback { min-height: 28px; font-weight: 700; }
+  #scoreboard { font-weight: 600; }
+  #board {
+    position: relative; width: 1400px; height: 200px;
+    background: url("cg-longneck.png") center/contain no-repeat;
+    border: 1px solid #ccc; margin: 8px 12px 20px;
+  }
+  .dot {
+    position: absolute; width: 26px; height: 26px; border-radius: 50%;
+    background: #7e3ff2; border: 3px solid #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,.3);
+    transform: translate(-50%, -50%);
+  }
+</style>
+</head>
+<body>
+<h2>Intervals</h2>
+
+<!-- Level selection buttons -->
+<div id="levelButtons">
+  <button class="level-btn active" data-level="1">Level 1</button>
+  <button class="level-btn" data-level="2">Level 2</button>
+  <button class="level-btn" data-level="3" disabled>Level 3</button>
+</div>
+
+<!-- Main controls -->
+<div id="controls">
+  <button id="startBtn">Start</button>
+  <button id="resetBtn">Reset</button>
+  <div id="timer">2:00</div>
+  <div id="scoreboard">Score: <span id="score">0</span></div>
+  <div id="feedback"></div>
+</div>
+
+<div id="board"></div>
+
+<script>
+/* ---------- Setup ---------- */
+const board = document.getElementById('board');
+const startBtn = document.getElementById('startBtn');
+const resetBtn = document.getElementById('resetBtn');
+const timerEl = document.getElementById('timer');
+const scoreEl = document.getElementById('score');
+const feedback = document.getElementById('feedback');
+const levelButtons = document.querySelectorAll('.level-btn');
+
+const TOTAL_FRETS = 22;
+const GAME_SECONDS = 120;
+const stringY = { 6: 75, 5: 62, 4: 49, 3: 36, 2: 23, 1: 10 };
+
+const notes = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+const openNotes = { 6:'E', 5:'A', 4:'D', 3:'G', 2:'B', 1:'E' };
+const openMidi  = { 6:40, 5:45, 4:50, 3:55, 2:59, 1:64 };
+
+const noteAt = (s,f)=>notes[(notes.indexOf(openNotes[s])+f)%12];
+const midiAt = (s,f)=>openMidi[s]+f;
+const fretX  = f=>((f+0.5)/(TOTAL_FRETS+1))*100;
+const randInt=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const clearDots=()=>document.querySelectorAll('.dot').forEach(d=>d.remove());
+
+function normalizeAccidentals(n){ if(n==='E♯')return'F'; if(n==='B♯')return'C'; return n; }
+const flatToSharp={'A♭':'G♯','B♭':'A♯','D♭':'C♯','E♭':'D♯','G♭':'F♯'};
+function correctSpelling(low,high,semitones){
+  const semitoneToInterval={0:1,5:4,7:5,12:8};
+  const num=semitoneToInterval[semitones];
+  if(!num)return[low,high];
+  const letters=['C','D','E','F','G','A','B'];
+  const lowL=low[0]; const lowI=letters.indexOf(lowL);
+  const expected=letters[(lowI+num-1)%7];
+  if(high[0]!==expected && flatToSharp[high]) return [low,flatToSharp[high]];
+  return [low,high];
+}
+
+let score=0,timeLeft=GAME_SECONDS,timer=null,gameActive=false;
+let currentInterval=null,s1=0,f1=0,s2=0,f2=0,n1='',n2='',level=1;
+
+/* ---------- Level selection ---------- */
+levelButtons.forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    if(btn.disabled) return;
+    level=parseInt(btn.dataset.level,10);
+    levelButtons.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    feedback.textContent=`Selected Level ${level}`;
+  });
+});
+
+/* ---------- Interval Generators ---------- */
+function genP1(strSet){
+  const pairs=[];
+  for(let i=0;i<strSet.length-1;i++) pairs.push([strSet[i+1],strSet[i]]);
+  const [upper,lower]=pick(pairs);
+  const f=randInt(0,TOTAL_FRETS-5);
+  return [upper,f,lower,f+5];
+}
+function genP4(strSet){
+  const pairs=[];
+  for(let i=0;i<strSet.length-1;i++) pairs.push([strSet[i+1],strSet[i]]);
+  const [upper,lower]=pick(pairs);
+  const f=randInt(0,TOTAL_FRETS);
+  return [upper,f,lower,f];
+}
+function genP5(strSet){
+  if(Math.random()<0.5){
+    const pairs=[];
+    for(let i=0;i<strSet.length-1;i++) pairs.push([strSet[i],strSet[i+1]]);
+    const [lowS,upS]=pick(pairs);
+    const fLow=randInt(0,TOTAL_FRETS-2);
+    return [lowS,fLow,upS,fLow+2];
+  }else{
+    const pairs=[];
+    for(let i=0;i<strSet.length-2;i++) pairs.push([strSet[i],strSet[i+2]]);
+    const [lowS,upS]=pick(pairs);
+    const fLow=randInt(3,TOTAL_FRETS);
+    return [lowS,fLow,upS,fLow-3];
+  }
+}
+function genP8(strSet){
+  const pairs=[];
+  for(let i=0;i<strSet.length-2;i++) pairs.push([strSet[i],strSet[i+2]]);
+  const [lowS,upS]=pick(pairs);
+  const fLow=randInt(0,TOTAL_FRETS-2);
+  return [lowS,fLow,upS,fLow+2];
+}
+
+/* ---------- Draw Interval ---------- */
+function drawInterval(){
+  clearDots();
+  const strSet=level===1?[6,5,4,3]:[6,5,4,3,2,1];
+  currentInterval=pick(['p1','p4','p5','p8']);
+  if(currentInterval==='p1')[s1,f1,s2,f2]=genP1(strSet);
+  else if(currentInterval==='p4')[s1,f1,s2,f2]=genP4(strSet);
+  else if(currentInterval==='p5')[s1,f1,s2,f2]=genP5(strSet);
+  else [s1,f1,s2,f2]=genP8(strSet);
+
+  n1=normalizeAccidentals(noteAt(s1,f1));
+  n2=normalizeAccidentals(noteAt(s2,f2));
+
+  const d1=document.createElement('div'); d1.className='dot';
+  d1.style.left=fretX(f1)+'%'; d1.style.top=stringY[s1]+'%';
+  const d2=document.createElement('div'); d2.className='dot';
+  d2.style.left=fretX(f2)+'%'; d2.style.top=stringY[s2]+'%';
+  board.append(d1,d2);
+
+  // ✅ Add console output for debugging (fixed for visual orientation)
+  const aMidi = midiAt(s1,f1);
+  const bMidi = midiAt(s2,f2);
+  const lowPitch = aMidi <= bMidi ? {s:s1,f:f1,name:n1,midi:aMidi} : {s:s2,f:f2,name:n2,midi:bMidi};
+  const highPitch = aMidi <= bMidi ? {s:s2,f:f2,name:n2,midi:bMidi} : {s:s1,f:f1,name:n1,midi:aMidi};
+
+  // Visually, smaller string numbers (1,2,3) appear higher on the fretboard
+  const visuallyLower = lowPitch.s < highPitch.s ? highPitch : lowPitch;
+  const visuallyHigher = lowPitch.s < highPitch.s ? lowPitch : highPitch;
+
+  const semis = Math.abs(aMidi - bMidi);
+  let [lowName,highName]=correctSpelling(lowPitch.name,highPitch.name,semis);
+  const labels={p1:"P1",p4:"P4",p5:"P5",p8:"P8"};
+
+  console.log(
+    `Generated interval: ${labels[currentInterval]} → ${lowName}–${highName} ` +
+    `(String ${visuallyLower.s}, fret ${visuallyLower.f}; String ${visuallyHigher.s}, fret ${visuallyHigher.f})`
+  );
+}
+
+/* ---------- Feedback ---------- */
+function feedbackTextForCurrent(){
+  const a={s:s1,f:f1,name:n1,midi:midiAt(s1,f1)};
+  const b={s:s2,f:f2,name:n2,midi:midiAt(s2,f2)};
+  const low=a.midi<=b.midi?a:b; const high=a.midi<=b.midi?b:a;
+  const semis=Math.abs(a.midi-b.midi);
+  let [lowName,highName]=correctSpelling(low.name,high.name,semis);
+  const names={p1:'Perfect Unison',p4:'Perfect 4th',p5:'Perfect 5th',p8:'Perfect Octave'};
+  return currentInterval==='p8'
+    ? `${lowName}–${highName}ʹ is a ${names[currentInterval]}!`
+    : `${lowName}–${highName} is a ${names[currentInterval]}!`;
+}
+
+/* ---------- Game Flow ---------- */
+function updateTimer(){const m=Math.floor(timeLeft/60),s=String(timeLeft%60).padStart(2,'0');timerEl.textContent=`${m}:${s}`;}
+function startGame(){
+  if(gameActive)return;
+  score=0;scoreEl.textContent=score;timeLeft=120;updateTimer();
+  feedback.textContent='';gameActive=true;
+  startBtn.style.display='none';resetBtn.style.display='none';
+  drawInterval();
+  timer=setInterval(()=>{timeLeft--;updateTimer();if(timeLeft<=0)endGame();},1000);
+}
+function endGame(){clearInterval(timer);timer=null;gameActive=false;
+  feedback.textContent='⏰ Time’s up!';clearDots();resetBtn.style.display='inline-block';}
+function resetGame(){clearInterval(timer);timer=null;score=0;scoreEl.textContent=score;
+  timeLeft=120;updateTimer();feedback.textContent='';clearDots();
+  resetBtn.style.display='none';startBtn.style.display='inline-block';}
+
+/* ---------- Input ---------- */
+document.addEventListener('keydown',e=>{
+  if(!gameActive)return;
+  const expected=currentInterval==='p1'?'1':currentInterval==='p4'?'4':currentInterval==='p5'?'5':'8';
+  if(e.key===expected){
+    score+=10;scoreEl.textContent=score;
+    const msg=`✅ Correct! ${feedbackTextForCurrent()}`;
+    feedback.textContent=msg;feedback.style.color='green';
+    setTimeout(()=>{feedback.textContent='';drawInterval();},900);
+  }else if(['1','4','5','8'].includes(e.key)){
+    score-=5;scoreEl.textContent=score;
+    feedback.textContent='❌ Wrong';feedback.style.color='red';
+  }
+});
+startBtn.addEventListener('click',startGame);
+resetBtn.addEventListener('click',resetGame);
+</script>
+</body>
+</html>
