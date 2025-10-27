@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Welcome, {{ username }}!</h2>
+<p>You’re now logged in. This is where we’ll later show your interval progress 🎸</p>
+<a href="{{ url_for('logout') }}">Logout</a>
+{% endblock %}

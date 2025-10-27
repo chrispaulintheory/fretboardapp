@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title or "Intervals Game" }}</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            background: #f9f9f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            background: #fff;
+            margin-top: 50px;
+            padding: 20px 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            width: 400px;
+        }
+        input, button {
+            padding: 10px;
+            width: 100%;
+            margin-top: 10px;
+        }
+        a {
+            color: #7e3ff2;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .flash {
+            color: #b00;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="flash">
+                {% for msg in messages %}
+                    <p>{{ msg }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>
