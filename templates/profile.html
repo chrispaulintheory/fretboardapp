@@ -1,12 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Welcome, {{ username }}!</h2>
-<p>You’re now logged in. This is where we’ll later show your interval progress 🎸</p>
+<p>You’re now logged in.</p>
 
-<a href="{{ url_for('static', filename='intervals.html') }}" target="_blank">
-    🎮 Play Interval Trainer
-</a>
+<p><strong>Your best interval score:</strong> {{ best_score }}</p>
 
-<br><br>
+<p>
+  <a href="{{ url_for('game') }}">🎮 Play Interval Trainer</a>
+</p>
+
 <a href="{{ url_for('logout') }}">Logout</a>
 {% endblock %}

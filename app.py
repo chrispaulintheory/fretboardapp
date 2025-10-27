@@ -1,32 +1,30 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3, os
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key_here"  # change this to a long random string!
 
-# --- Database setup ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "users.db")
 
+# ---------- Database setup ----------
 def init_db():
-    """Create user table if it doesn't exist."""
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL
+                password TEXT NOT NULL,
+                best_score INTEGER DEFAULT 0
             )
         """)
 init_db()
 
 def get_db():
-    """Return a new database connection."""
     return sqlite3.connect(DB_PATH)
 
-# --- Auth routes ---
-
+# ---------- Routes ----------
 @app.route("/")
 def home():
     if "user_id" in session:
@@ -36,8 +34,8 @@ def home():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        username = request.form["username"].strip()
-        password = request.form["password"].strip()
+        username = request.form["username"]
+        password = request.form["password"]
 
         if not username or not password:
             flash("Please fill out all fields.")
@@ -59,8 +57,8 @@ def register():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form["username"].strip()
-        password = request.form["password"].strip()
+        username = request.form["username"]
+        password = request.form["password"]
 
         with get_db() as conn:
             user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
@@ -81,29 +79,52 @@ def logout():
     flash("You have been logged out.")
     return redirect(url_for("login"))
 
-# --- Protected routes ---
-
-def login_required(func):
-    """Decorator to ensure user is logged in."""
-    from functools import wraps
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if "user_id" not in session:
-            flash("Please log in first.")
-            return redirect(url_for("login"))
-        return func(*args, **kwargs)
-    return wrapper
-
 @app.route("/profile")
-@login_required
 def profile():
-    return render_template("profile.html", username=session["username"])
+    if "user_id" not in session:
+        flash("Please log in first.")
+        return redirect(url_for("login"))
+
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT username, best_score FROM users WHERE id = ?", 
+            (session["user_id"],)
+        ).fetchone()
+
+    username = row[0] if row else "Unknown"
+    best_score = row[1] if row and row[1] else 0
+
+    return render_template("profile.html", username=username, best_score=best_score)
 
 @app.route("/game")
-@login_required
 def game():
-    return render_template("intervals.html")
+    if "user_id" not in session:
+        flash("Please log in to play.")
+        return redirect(url_for("login"))
 
-# --- Run app ---
+    with get_db() as conn:
+        row = conn.execute("SELECT best_score FROM users WHERE id=?", (session["user_id"],)).fetchone()
+    best_score = row[0] if row and row[0] else 0
+
+    return render_template("intervals.html", best_score=best_score)
+
+@app.route("/submit_score", methods=["POST"])
+def submit_score():
+    if "user_id" not in session:
+        return jsonify({"error": "Not logged in"}), 401
+
+    data = request.get_json()
+    score = data.get("score", 0)
+
+    with get_db() as conn:
+        row = conn.execute("SELECT best_score FROM users WHERE id=?", (session["user_id"],)).fetchone()
+        best = row[0] if row and row[0] else 0
+
+        if score > best:
+            conn.execute("UPDATE users SET best_score=? WHERE id=?", (score, session["user_id"]))
+            conn.commit()
+
+    return jsonify({"saved": True, "score": score, "status": "ok"})
+
 if __name__ == "__main__":
     app.run(debug=True)
