@@ -15,7 +15,7 @@
 
   /* Level buttons row */
   #levelButtons {
-    display: flex; gap: 10px; margin: 8px 0 16px;
+    display: flex; gap: 10px; margin: 8px 0 6px;
   }
   .level-btn {
     background: #ccc; color: #333; border: 0; border-radius: 6px;
@@ -26,6 +26,11 @@
   .level-btn.active {
     background: #7e3ff2; color: #fff;
     transform: scale(1.05);
+  }
+  #levelDescription {
+    font-size: 15px;
+    color: #555;
+    margin-bottom: 12px;
   }
 
   #controls {
@@ -64,6 +69,9 @@
   <button class="level-btn" data-level="3" disabled>Level 3</button>
 </div>
 
+<!-- Level description text -->
+<div id="levelDescription">Level 1: Perfect intervals (P1, P4, P5, P8) and the Tritone (A4/D5) on E–A–D–G string set.</div>
+
 <!-- Main controls -->
 <div id="controls">
   <button id="startBtn">Start</button>
@@ -84,6 +92,7 @@ const timerEl = document.getElementById('timer');
 const scoreEl = document.getElementById('score');
 const feedback = document.getElementById('feedback');
 const levelButtons = document.querySelectorAll('.level-btn');
+const levelDesc = document.getElementById('levelDescription');
 
 const TOTAL_FRETS = 22;
 const GAME_SECONDS = 120;
@@ -116,6 +125,13 @@ function correctSpelling(low,high,semitones){
 let score=0,timeLeft=GAME_SECONDS,timer=null,gameActive=false;
 let currentInterval=null,s1=0,f1=0,s2=0,f2=0,n1='',n2='',level=1;
 
+/* ---------- Level descriptions ---------- */
+const levelInfo = {
+  1: "Level 1: Perfect intervals (P1, P4, P5, P8) on E–A–D–G string set.",
+  2: "Level 2: Perfect intervals (P1, P4, P5, P8) on all six strings.",
+  3: "Level 3: Major intervals (M2, M3, M6, M7) on E–A–D–G string set."
+};
+
 /* ---------- Level selection ---------- */
 levelButtons.forEach(btn=>{
   btn.addEventListener('click',()=>{
@@ -123,6 +139,7 @@ levelButtons.forEach(btn=>{
     level=parseInt(btn.dataset.level,10);
     levelButtons.forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
+    levelDesc.textContent = levelInfo[level] || "";
     feedback.textContent=`Selected Level ${level}`;
   });
 });
@@ -184,13 +201,12 @@ function drawInterval(){
   d2.style.left=fretX(f2)+'%'; d2.style.top=stringY[s2]+'%';
   board.append(d1,d2);
 
-  // ✅ Add console output for debugging (fixed for visual orientation)
+  // ✅ Console output (visually accurate)
   const aMidi = midiAt(s1,f1);
   const bMidi = midiAt(s2,f2);
   const lowPitch = aMidi <= bMidi ? {s:s1,f:f1,name:n1,midi:aMidi} : {s:s2,f:f2,name:n2,midi:bMidi};
   const highPitch = aMidi <= bMidi ? {s:s2,f:f2,name:n2,midi:bMidi} : {s:s1,f:f1,name:n1,midi:aMidi};
 
-  // Visually, smaller string numbers (1,2,3) appear higher on the fretboard
   const visuallyLower = lowPitch.s < highPitch.s ? highPitch : lowPitch;
   const visuallyHigher = lowPitch.s < highPitch.s ? lowPitch : highPitch;
 
@@ -202,7 +218,6 @@ function drawInterval(){
     `Generated interval: ${labels[currentInterval]} → ${lowName}–${highName} ` +
     `(String ${visuallyLower.s}, fret ${visuallyLower.f}; String ${visuallyHigher.s}, fret ${visuallyHigher.f})`
   );
-  console.log("Dots:", {dot1:{string:s1,fret:f1,note:n1}, dot2:{string:s2,fret:f2,note:n2}});
 }
 
 /* ---------- Feedback ---------- */
