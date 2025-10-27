@@ -50,13 +50,39 @@
   #board {
     position: relative; width: 1400px; height: 200px;
     background: url("cg-longneck.png") center/contain no-repeat;
-    border: 1px solid #ccc; margin: 8px 12px 20px;
+    border: 1px solid #ccc; margin: 8px 12px 12px;
   }
   .dot {
     position: absolute; width: 26px; height: 26px; border-radius: 50%;
     background: #7e3ff2; border: 3px solid #fff;
     box-shadow: 0 2px 6px rgba(0,0,0,.3);
     transform: translate(-50%, -50%);
+  }
+
+  /* ---- Game control buttons ---- */
+  .game-controls-wrapper {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .game-controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  .game-controls button {
+    background: #fff;
+    color: #333;
+    border: 2px solid #888;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 15px;
+    cursor: default;
+  }
+  .btn-purple {
+    background: #7e3ff2;
+    color: #fff;
+    border-color: #7e3ff2;
   }
 </style>
 </head>
@@ -82,6 +108,17 @@
 </div>
 
 <div id="board"></div>
+
+<!-- Controls legend -->
+<div class="game-controls-wrapper text-center">
+  <div class="game-controls d-flex flex-wrap justify-content-center">
+    <button type="button" class="btn btn-purple" disabled>UNISON (1)</button>
+    <button type="button" class="btn btn-purple" disabled>PERFECT 4th (4)</button>
+    <button type="button" class="btn btn-purple" disabled>PERFECT 5th (5)</button>
+    <button type="button" class="btn btn-purple" disabled>TRITONE (T)</button>
+    <button type="button" class="btn btn-purple" disabled>OCTAVE (8)</button>
+  </div>
+</div>
 
 <script>
 /* ---------- Setup ---------- */
@@ -192,7 +229,6 @@ function feedbackTextForCurrent(){
   const names={p1:'Perfect Unison',p4:'Perfect 4th',p5:'Perfect 5th',tt:'Tritone',p8:'Perfect Octave'};
 
   if(currentInterval==='tt'){
-    // Determine if A4 or D5
     const letters=['C','D','E','F','G','A','B'];
     const lowIndex=letters.indexOf(lowName[0]);
     const highIndex=letters.indexOf(highName[0]);
