@@ -5,7 +5,8 @@ import sqlite3, os
 app = Flask(__name__)
 app.secret_key = "your_secret_key_here"  # change this to a long random string!
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "users.db")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "users.db")
 
 # Create table if it doesn't exist
 def init_db():
