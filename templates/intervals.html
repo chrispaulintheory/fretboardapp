@@ -178,7 +178,22 @@ function genP1(strSet){
   return[upS,fLow,lowS,fLow+offset];
 }
 
-function genP4(strSet){const pairs=[];for(let i=0;i<strSet.length-1;i++)pairs.push([strSet[i+1],strSet[i]]);const[upper,lower]=pick(pairs);const f=randInt(0,TOTAL_FRETS);return[upper,f,lower,f];}
+function genP4(strSet) {
+  const pairs = [];
+  for (let i = 0; i < strSet.length - 1; i++) pairs.push([strSet[i + 1], strSet[i]]);
+  const [upper, lower] = pick(pairs);
+  let fLow = randInt(0, TOTAL_FRETS);
+  let fHigh = fLow;
+
+  // 🎯 G → B correction: add +1 fret for true perfect 4th
+  if (lower === 3 && upper === 2) {
+    fHigh = fLow + 1;
+  }
+
+  return [upper, fHigh, lower, fLow];
+}
+
+
 function genP5(strSet){if(Math.random()<0.5){const pairs=[];for(let i=0;i<strSet.length-1;i++)pairs.push([strSet[i],strSet[i+1]]);const[lowS,upS]=pick(pairs);const fLow=randInt(0,TOTAL_FRETS-2);return[lowS,fLow,upS,fLow+2];}else{const pairs=[];for(let i=0;i<strSet.length-2;i++)pairs.push([strSet[i],strSet[i+2]]);const[lowS,upS]=pick(pairs);const fLow=randInt(3,TOTAL_FRETS);return[lowS,fLow,upS,fLow-3];}}
 
 function genP8(strSet) {
@@ -241,7 +256,23 @@ function drawInterval(){
   const d1=document.createElement('div');d1.className='dot';d1.style.left=fretX(f1)+'%';d1.style.top=stringY[s1]+'%';
   const d2=document.createElement('div');d2.className='dot';d2.style.left=fretX(f2)+'%';d2.style.top=stringY[s2]+'%';
   board.append(d1,d2);
-  console.log(`Generated ${currentInterval.toUpperCase()} → ${n1}–${n2} [${s1}:${f1}→${s2}:${f2}]`);
+  
+// Determine which note is lower in pitch (for proper labeling)
+const midi1 = midiAt(s1,f1);
+const midi2 = midiAt(s2,f2);
+let lowNote = n1, highNote = n2;
+let lowString = s1, highString = s2;
+let lowFret = f1, highFret = f2;
+
+if (midi2 < midi1) {
+  [lowNote, highNote] = [n2, n1];
+  [lowString, highString] = [s2, s1];
+  [lowFret, highFret] = [f2, f1];
+}
+
+console.log(`Generated ${currentInterval.toUpperCase()} → ${lowNote}–${highNote} [${lowString}:${lowFret}→${highString}:${highFret}]`);
+
+
 }
 
 function feedbackTextForCurrent(){
