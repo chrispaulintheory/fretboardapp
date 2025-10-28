@@ -217,7 +217,20 @@ levelButtons.forEach(btn=>{
 function drawInterval(){
   clearDots();
   const strSet=(level===1)?[6,5,4,3]:[6,5,4,3,2,1];
-  currentInterval=pick(['p1','p4','p5','tt','p8']);
+
+
+// Smart randomization – never repeat the same interval twice in a row
+  const possibleIntervals = ['p1', 'p4', 'p5', 'tt', 'p8'];
+  let newInterval = pick(possibleIntervals);
+  if (window.lastInterval && possibleIntervals.length > 1) {
+    while (newInterval === window.lastInterval) {
+      newInterval = pick(possibleIntervals);
+    }
+  }
+  currentInterval = newInterval;
+  window.lastInterval = currentInterval;
+
+
   if(currentInterval==='p1'){[s1,f1,s2,f2]=genP1(strSet);}
   else if(currentInterval==='p4'){[s1,f1,s2,f2]=genP4(strSet);}
   else if(currentInterval==='p5'){[s1,f1,s2,f2]=genP5(strSet);}
