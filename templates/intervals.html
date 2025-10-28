@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<!-- version 2025-10-27-2315 -->
+  <!-- version 2025-10-28-rollback -->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -67,7 +67,6 @@
     transform: translate(-50%, -50%);
   }
 
-  /* ---- Game control buttons ---- */
   .game-controls-wrapper {
     text-align: center;
     margin-bottom: 20px;
@@ -103,7 +102,6 @@
 <div id="levelButtons">
   <button class="level-btn active" data-level="1">Level 1</button>
   <button class="level-btn" data-level="2">Level 2</button>
-  <button class="level-btn" data-level="3" disabled>Level 3</button>
 </div>
 
 <div id="levelDescription">
@@ -124,19 +122,17 @@
 
 <div id="board"></div>
 
-<!-- Controls legend -->
 <div class="game-controls-wrapper text-center">
   <div class="game-controls" id="controlButtons">
     <button data-key="1">UNISON (1)</button>
     <button data-key="4">PERFECT 4th (4)</button>
-    <button data-key="t">TRITONE (T)</button>
     <button data-key="5">PERFECT 5th (5)</button>
+    <button data-key="t">TRITONE (T)</button>
     <button data-key="8">OCTAVE (8)</button>
   </div>
 </div>
 
 <script>
-/* ---------- Setup ---------- */
 const board=document.getElementById('board');
 const startBtn=document.getElementById('startBtn');
 const resetBtn=document.getElementById('resetBtn');
@@ -144,131 +140,118 @@ const timerEl=document.getElementById('timer');
 const scoreEl=document.getElementById('score');
 const feedback=document.getElementById('feedback');
 const levelButtons=document.querySelectorAll('.level-btn');
+const levelDesc=document.getElementById('levelDescription');
 const controlButtons=document.querySelectorAll('#controlButtons button');
-const bestScoreDisplay=document.getElementById('bestScoreDisplay');
 
 const TOTAL_FRETS=22,GAME_SECONDS=120;
 const stringY={6:75,5:62,4:49,3:36,2:23,1:10};
+
 const notes=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 const openNotes={6:'E',5:'A',4:'D',3:'G',2:'B',1:'E'};
 const openMidi={6:40,5:45,4:50,3:55,2:59,1:64};
+
 const noteAt=(s,f)=>notes[(notes.indexOf(openNotes[s])+f)%12];
 const midiAt=(s,f)=>openMidi[s]+f;
 const fretX=f=>((f+0.5)/(TOTAL_FRETS+1))*100;
 const randInt=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 const clearDots=()=>document.querySelectorAll('.dot').forEach(d=>d.remove());
-const normalizeAccidentals=n=>(n==='E♯'?'F':n==='B♯'?'C':n);
 
-let score=0,timeLeft=GAME_SECONDS,timer=null,gameActive=false,currentInterval=null;
-let s1=0,f1=0,s2=0,f2=0,n1='',n2='',level=1,lastInterval=null;
+function normalizeAccidentals(n){if(n==='E♯')return'F';if(n==='B♯')return'C';return n;}
+const flatToSharp={'A♭':'G♯','B♭':'A♯','D♭':'C♯','E♭':'D♯','G♭':'F♯'};
+function correctSpelling(low,high,semitones){
+  const semitoneToInterval={0:1,5:4,6:'TT',7:5,12:8};
+  const num=semitoneToInterval[semitones];
+  if(!num)return[low,high];
+  const letters=['C','D','E','F','G','A','B'];
+  const lowL=low[0];const lowI=letters.indexOf(lowL);
+  const expected=letters[(lowI+(typeof num==="number"?num:4)-1)%7];
+  if(high[0]!==expected&&flatToSharp[high])return[low,flatToSharp[high]];
+  return[low,high];
+}
 
-/* ---------- Interval Generators ---------- */
-function genP1(strSet){const pairs=[];for(let i=0;i<strSet.length-1;i++)pairs.push([strSet[i+1],strSet[i]]);const[upper,lower]=pick(pairs);const f=randInt(0,TOTAL_FRETS-5);return[upper,f,lower,f+5];}
+/* ----- P1 FIXED FOR G–B OFFSET ----- */
+function genP1(strSet){
+  const adjPairs=[[6,5,5],[5,4,5],[4,3,5],[3,2,4],[2,1,5]].filter(p=>strSet.includes(p[0])&&strSet.includes(p[1]));
+  const [lowS,upS,offset]=pick(adjPairs);
+  const fLow=randInt(0,TOTAL_FRETS-offset);
+  return[upS,fLow,lowS,fLow+offset];
+}
+
 function genP4(strSet){const pairs=[];for(let i=0;i<strSet.length-1;i++)pairs.push([strSet[i+1],strSet[i]]);const[upper,lower]=pick(pairs);const f=randInt(0,TOTAL_FRETS);return[upper,f,lower,f];}
 function genP5(strSet){if(Math.random()<0.5){const pairs=[];for(let i=0;i<strSet.length-1;i++)pairs.push([strSet[i],strSet[i+1]]);const[lowS,upS]=pick(pairs);const fLow=randInt(0,TOTAL_FRETS-2);return[lowS,fLow,upS,fLow+2];}else{const pairs=[];for(let i=0;i<strSet.length-2;i++)pairs.push([strSet[i],strSet[i+2]]);const[lowS,upS]=pick(pairs);const fLow=randInt(3,TOTAL_FRETS);return[lowS,fLow,upS,fLow-3];}}
 function genP8(strSet){const pairs=[];for(let i=0;i<strSet.length-2;i++)pairs.push([strSet[i],strSet[i+2]]);const[lowS,upS]=pick(pairs);const fLow=randInt(0,TOTAL_FRETS-2);return[lowS,fLow,upS,fLow+2];}
 function genTT(strSet){const validPairs=[[6,5,1],[5,4,1],[4,3,1],[3,2,0],[2,1,1]];const[lowS,upS,offset]=pick(validPairs.filter(p=>strSet.includes(p[0])&&strSet.includes(p[1])));const fLow=randInt(0,TOTAL_FRETS-offset-1);return[lowS,fLow,upS,fLow+offset];}
 
-/* ---------- Draw Interval ---------- */
+let score=0,timeLeft=GAME_SECONDS,timer=null,gameActive=false;
+let currentInterval=null,s1=0,f1=0,s2=0,f2=0,n1='',n2='',level=1;
+
+levelButtons.forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    if(btn.disabled)return;
+    level=parseInt(btn.dataset.level,10);
+    levelButtons.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    levelDesc.textContent=(level===1)?
+      "Level 1: Perfect intervals (P1, P4, P5, P8) and Tritone on E–A–D–G.":
+      "Level 2: Perfect intervals (P1, P4, P5, P8) and Tritone on all 6 strings.";
+  });
+});
+
 function drawInterval(){
   clearDots();
-  const strSet=level===1?[6,5,4,3]:[6,5,4,3,2,1];
-  const intervals=['p1','p4','p5','tt','p8'];
-  let nextInterval;
-  do { nextInterval = pick(intervals); } while(nextInterval === lastInterval);
-  lastInterval = nextInterval;
-  currentInterval = nextInterval;
-
-  if(currentInterval==='p1')[s1,f1,s2,f2]=genP1(strSet);
-  else if(currentInterval==='p4')[s1,f1,s2,f2]=genP4(strSet);
-  else if(currentInterval==='p5')[s1,f1,s2,f2]=genP5(strSet);
-  else if(currentInterval==='tt')[s1,f1,s2,f2]=genTT(strSet);
-  else [s1,f1,s2,f2]=genP8(strSet);
-
+  const strSet=(level===1)?[6,5,4,3]:[6,5,4,3,2,1];
+  currentInterval=pick(['p1','p4','p5','tt','p8']);
+  if(currentInterval==='p1'){[s1,f1,s2,f2]=genP1(strSet);}
+  else if(currentInterval==='p4'){[s1,f1,s2,f2]=genP4(strSet);}
+  else if(currentInterval==='p5'){[s1,f1,s2,f2]=genP5(strSet);}
+  else if(currentInterval==='tt'){[s1,f1,s2,f2]=genTT(strSet);}
+  else {[s1,f1,s2,f2]=genP8(strSet);}
   n1=normalizeAccidentals(noteAt(s1,f1));
   n2=normalizeAccidentals(noteAt(s2,f2));
-
   const d1=document.createElement('div');d1.className='dot';d1.style.left=fretX(f1)+'%';d1.style.top=stringY[s1]+'%';
   const d2=document.createElement('div');d2.className='dot';d2.style.left=fretX(f2)+'%';d2.style.top=stringY[s2]+'%';
   board.append(d1,d2);
+  console.log(`Generated ${currentInterval.toUpperCase()} → ${n1}–${n2} [${s1}:${f1}→${s2}:${f2}]`);
 }
 
-/* ---------- Feedback ---------- */
 function feedbackTextForCurrent(){
   const a={s:s1,f:f1,name:n1,midi:midiAt(s1,f1)};
   const b={s:s2,f:f2,name:n2,midi:midiAt(s2,f2)};
-  const low=a.midi<=b.midi?a:b;const high=a.midi<=b.midi?b:a;
+  const low=a.midi<=b.midi?a:b,high=a.midi<=b.midi?b:a;
   const semis=Math.abs(a.midi-b.midi);
+  let[lowName,highName]=correctSpelling(low.name,high.name,semis);
   const names={p1:'Perfect Unison',p4:'Perfect 4th',p5:'Perfect 5th',tt:'Tritone',p8:'Perfect Octave'};
   if(currentInterval==='tt'){
     const letters=['C','D','E','F','G','A','B'];
-    const lowI=letters.indexOf(low.name[0]);
-    const highI=letters.indexOf(high.name[0]);
-    const letterDistance=(highI-lowI+7)%7+1;
-    const quality=(letterDistance===4?'Augmented 4th':'Diminished 5th');
-    return `${low.name}–${high.name} is a ${quality}, a Tritone!`;
+    const lowI=letters.indexOf(lowName[0]);
+    const highI=letters.indexOf(highName[0]);
+    const dist=(highI-lowI+7)%7+1;
+    const qual=(dist===4?'Augmented 4th':'Diminished 5th');
+    return `${lowName}–${highName} is a ${qual}, a Tritone!`;
   }
-  return currentInterval==='p8'
-    ? `${low.name}–${high.name}ʹ is a ${names[currentInterval]}!`
-    : `${low.name}–${high.name} is a ${names[currentInterval]}!`;
+  return currentInterval==='p8'?`${lowName}–${highName}ʹ is a ${names[currentInterval]}!`:`${lowName}–${highName} is a ${names[currentInterval]}!`;
 }
 
-/* ---------- Game Flow ---------- */
 function updateTimer(){const m=Math.floor(timeLeft/60),s=String(timeLeft%60).padStart(2,'0');timerEl.textContent=`${m}:${s}`;}
-function startGame(){
-  if(gameActive)return;
-  score=0;scoreEl.textContent=score;timeLeft=GAME_SECONDS;updateTimer();
-  feedback.textContent='';gameActive=true;
-  startBtn.style.display='none';resetBtn.style.display='none';
-  drawInterval();
-  timer=setInterval(()=>{timeLeft--;updateTimer();if(timeLeft<=0)endGame();},1000);
-}
-function endGame(){
-  clearInterval(timer);timer=null;gameActive=false;
-  feedback.textContent='⏰ Time’s up!';clearDots();resetBtn.style.display='inline-block';
-  fetch('/submit_score',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({score})
-  }).then(r=>r.json()).then(data=>{
-    if(data.saved){bestScoreDisplay.textContent=`Best Score: ${data.score}`;}
-  }).catch(e=>console.error('Score save error:',e));
-}
-function resetGame(){clearInterval(timer);timer=null;score=0;scoreEl.textContent=score;
-  timeLeft=GAME_SECONDS;updateTimer();feedback.textContent='';clearDots();
-  resetBtn.style.display='none';startBtn.style.display='inline-block';}
+function startGame(){if(gameActive)return;score=0;scoreEl.textContent=score;timeLeft=120;updateTimer();feedback.textContent='';gameActive=true;startBtn.style.display='none';resetBtn.style.display='none';drawInterval();timer=setInterval(()=>{timeLeft--;updateTimer();if(timeLeft<=0)endGame();},1000);}
+function endGame(){clearInterval(timer);timer=null;gameActive=false;feedback.textContent='⏰ Time’s up!';clearDots();resetBtn.style.display='inline-block';fetch('{{ url_for("submit_score") }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({score,level})}).then(r=>r.json()).then(j=>console.log('Score saved:',j)).catch(e=>console.warn(e));}
+function resetGame(){clearInterval(timer);timer=null;score=0;scoreEl.textContent=score;timeLeft=120;updateTimer();feedback.textContent='';clearDots();resetBtn.style.display='none';startBtn.style.display='inline-block';}
 
-/* ---------- Input Handling ---------- */
 function handleAnswer(key){
   if(!gameActive)return;
   const expected=currentInterval==='p1'?'1':currentInterval==='p4'?'4':currentInterval==='p5'?'5':currentInterval==='tt'?'t':'8';
-  if(key===expected){
-    score+=10;scoreEl.textContent=score;
-    feedback.textContent=`✅ Correct! ${feedbackTextForCurrent()}`;
-    feedback.style.color='green';
-    setTimeout(()=>{feedback.textContent='';drawInterval();},900);
-  }else if(['1','4','5','8','t'].includes(key)){
-    score-=5;scoreEl.textContent=score;
-    feedback.textContent='❌ Wrong';feedback.style.color='red';
-  }
+  if(key===expected){score+=10;scoreEl.textContent=score;feedback.textContent=`✅ Correct! ${feedbackTextForCurrent()}`;feedback.style.color='green';setTimeout(()=>{feedback.textContent='';drawInterval();},900);}
+  else if(['1','4','5','t','8'].includes(key)){score-=5;scoreEl.textContent=score;feedback.textContent='❌ Wrong';feedback.style.color='red';}
 }
 
 document.addEventListener('keydown',e=>{
   const key=e.key.toLowerCase();
   handleAnswer(key);
-  controlButtons.forEach(btn=>{
-    if(btn.dataset.key===key){btn.classList.add('active-press');setTimeout(()=>btn.classList.remove('active-press'),150);}
-  });
+  controlButtons.forEach(btn=>{if(btn.dataset.key===key){btn.classList.add('active-press');setTimeout(()=>btn.classList.remove('active-press'),150);}});
 });
-controlButtons.forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    const key=btn.dataset.key;
-    btn.classList.add('active-press');
-    setTimeout(()=>btn.classList.remove('active-press'),150);
-    handleAnswer(key);
-  });
-});
+controlButtons.forEach(btn=>btn.addEventListener('click',()=>handleAnswer(btn.dataset.key)));
+
 startBtn.addEventListener('click',startGame);
 resetBtn.addEventListener('click',resetGame);
 </script>

@@ -132,7 +132,7 @@ def game():
 
     user_id = session["user_id"]
 
-    # 🧩 Make sure this user still exists (handles deleted DB scenario)
+    # Handle deleted DB or invalid session
     with get_db() as conn:
         user = conn.execute("SELECT username FROM users WHERE id=?", (user_id,)).fetchone()
 
@@ -143,10 +143,13 @@ def game():
 
     username = user[0]
 
-    # 🎯 Default to Level 1 for now (you can expand this later)
-    level = 1
+    # 🧭 Level selection via query parameter (?level=2)
+    try:
+        level = int(request.args.get("level", 1))
+    except ValueError:
+        level = 1
 
-    # 🏆 Get the best score for this user and level
+    # Get best score for this user + level
     with get_db() as conn:
         row = conn.execute(
             "SELECT best_score FROM scores WHERE user_id=? AND level=?",
@@ -155,8 +158,7 @@ def game():
 
     best_score = row[0] if row else 0
 
-    # Render the interval trainer game page
-    return render_template("intervals.html", username=username, best_score=best_score)
+    return render_template("intervals.html", username=username, level=level, best_score=best_score)
 
 @app.route("/submit_score", methods=["POST"])
 def submit_score():
