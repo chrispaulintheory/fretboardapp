@@ -15,11 +15,25 @@ def init_db():
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                best_score INTEGER DEFAULT 0
+                password TEXT NOT NULL
             )
         """)
 init_db()
+
+
+def init_scores_table():
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                level INTEGER NOT NULL,
+                best_score INTEGER NOT NULL DEFAULT 0,
+                UNIQUE(user_id, level),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """)
+init_scores_table()
 
 def get_db():
     return sqlite3.connect(DB_PATH)
@@ -41,7 +55,7 @@ def register():
             flash("Please fill out all fields.")
             return redirect(url_for("register"))
 
-        hashed = generate_password_hash(password)
+        hashed = generate_password_hash(password, method='pbkdf2:sha256')
 
         try:
             with get_db() as conn:
@@ -85,16 +99,20 @@ def profile():
         flash("Please log in first.")
         return redirect(url_for("login"))
 
+    user_id = session["user_id"]
+    username = session["username"]
+
+    # Fetch best scores per level for this user
     with get_db() as conn:
-        row = conn.execute(
-            "SELECT username, best_score FROM users WHERE id = ?", 
-            (session["user_id"],)
-        ).fetchone()
+        rows = conn.execute(
+            "SELECT level, best_score FROM scores WHERE user_id = ? ORDER BY level",
+            (user_id,)
+        ).fetchall()
 
-    username = row[0] if row else "Unknown"
-    best_score = row[1] if row and row[1] else 0
+    # Convert to a dict: {level: best_score}
+    best_scores = {row[0]: row[1] for row in rows}
 
-    return render_template("profile.html", username=username, best_score=best_score)
+    return render_template("profile.html", username=username, best_scores=best_scores)
 
 @app.route("/game")
 def game():
@@ -102,9 +120,16 @@ def game():
         flash("Please log in to play.")
         return redirect(url_for("login"))
 
+    user_id = session["user_id"]
+
+    # get the best score for Level 1 by default (or extend later)
     with get_db() as conn:
-        row = conn.execute("SELECT best_score FROM users WHERE id=?", (session["user_id"],)).fetchone()
-    best_score = row[0] if row and row[0] else 0
+        row = conn.execute(
+            "SELECT best_score FROM scores WHERE user_id = ? AND level = 1",
+            (user_id,)
+        ).fetchone()
+
+    best_score = row[0] if row else 0
 
     return render_template("intervals.html", best_score=best_score)
 
@@ -114,15 +139,33 @@ def submit_score():
         return jsonify({"error": "Not logged in"}), 401
 
     data = request.get_json()
+    level = data.get("level", 1)  # <-- NEW: include level info
     score = data.get("score", 0)
+    user_id = session["user_id"]
 
     with get_db() as conn:
-        row = conn.execute("SELECT best_score FROM users WHERE id=?", (session["user_id"],)).fetchone()
-        best = row[0] if row and row[0] else 0
+        # Check if this user already has a record for this level
+        row = conn.execute(
+            "SELECT best_score FROM scores WHERE user_id=? AND level=?",
+            (user_id, level)
+        ).fetchone()
 
-        if score > best:
-            conn.execute("UPDATE users SET best_score=? WHERE id=?", (score, session["user_id"]))
+        if row:
+            best = row[0]
+            if score > best:
+                conn.execute(
+                    "UPDATE scores SET best_score=? WHERE user_id=? AND level=?",
+                    (score, user_id, level)
+                )
+                conn.commit()
+                print(f"✅ Updated best score: user={user_id}, level={level}, score={score}")
+        else:
+            conn.execute(
+                "INSERT INTO scores (user_id, level, best_score) VALUES (?, ?, ?)",
+                (user_id, level, score)
+            )
             conn.commit()
+            print(f"🆕 Saved first score: user={user_id}, level={level}, score={score}")
 
     return jsonify({"saved": True, "score": score, "status": "ok"})
 
