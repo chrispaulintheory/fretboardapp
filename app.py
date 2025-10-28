@@ -100,16 +100,26 @@ def profile():
         return redirect(url_for("login"))
 
     user_id = session["user_id"]
-    username = session["username"]
 
-    # Fetch best scores per level for this user
+    # Make sure this user still exists
+    with get_db() as conn:
+        user = conn.execute("SELECT username FROM users WHERE id=?", (user_id,)).fetchone()
+
+    if not user:
+        # User no longer exists (e.g., after DB reset)
+        session.clear()
+        flash("Your account session is invalid. Please log in again.")
+        return redirect(url_for("login"))
+
+    username = user[0]
+
+    # Fetch best scores per level
     with get_db() as conn:
         rows = conn.execute(
-            "SELECT level, best_score FROM scores WHERE user_id = ? ORDER BY level",
+            "SELECT level, best_score FROM scores WHERE user_id=? ORDER BY level",
             (user_id,)
         ).fetchall()
 
-    # Convert to a dict: {level: best_score}
     best_scores = {row[0]: row[1] for row in rows}
 
     return render_template("profile.html", username=username, best_scores=best_scores)
@@ -122,16 +132,31 @@ def game():
 
     user_id = session["user_id"]
 
-    # get the best score for Level 1 by default (or extend later)
+    # 🧩 Make sure this user still exists (handles deleted DB scenario)
+    with get_db() as conn:
+        user = conn.execute("SELECT username FROM users WHERE id=?", (user_id,)).fetchone()
+
+    if not user:
+        session.clear()
+        flash("Your session is no longer valid. Please log in again.")
+        return redirect(url_for("login"))
+
+    username = user[0]
+
+    # 🎯 Default to Level 1 for now (you can expand this later)
+    level = 1
+
+    # 🏆 Get the best score for this user and level
     with get_db() as conn:
         row = conn.execute(
-            "SELECT best_score FROM scores WHERE user_id = ? AND level = 1",
-            (user_id,)
+            "SELECT best_score FROM scores WHERE user_id=? AND level=?",
+            (user_id, level)
         ).fetchone()
 
     best_score = row[0] if row else 0
 
-    return render_template("intervals.html", best_score=best_score)
+    # Render the interval trainer game page
+    return render_template("intervals.html", username=username, best_score=best_score)
 
 @app.route("/submit_score", methods=["POST"])
 def submit_score():
