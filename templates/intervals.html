@@ -180,7 +180,23 @@ function genP1(strSet){
 
 function genP4(strSet){const pairs=[];for(let i=0;i<strSet.length-1;i++)pairs.push([strSet[i+1],strSet[i]]);const[upper,lower]=pick(pairs);const f=randInt(0,TOTAL_FRETS);return[upper,f,lower,f];}
 function genP5(strSet){if(Math.random()<0.5){const pairs=[];for(let i=0;i<strSet.length-1;i++)pairs.push([strSet[i],strSet[i+1]]);const[lowS,upS]=pick(pairs);const fLow=randInt(0,TOTAL_FRETS-2);return[lowS,fLow,upS,fLow+2];}else{const pairs=[];for(let i=0;i<strSet.length-2;i++)pairs.push([strSet[i],strSet[i+2]]);const[lowS,upS]=pick(pairs);const fLow=randInt(3,TOTAL_FRETS);return[lowS,fLow,upS,fLow-3];}}
-function genP8(strSet){const pairs=[];for(let i=0;i<strSet.length-2;i++)pairs.push([strSet[i],strSet[i+2]]);const[lowS,upS]=pick(pairs);const fLow=randInt(0,TOTAL_FRETS-2);return[lowS,fLow,upS,fLow+2];}
+
+function genP8(strSet) {
+  // Valid 3-string span pairs: (6→4), (5→3), (4→2), (3→1)
+  const validPairs = [
+    [6, 4, 2],
+    [5, 3, 2],
+    [4, 2, 3],
+    [3, 1, 3]
+  ].filter(([low, high]) => strSet.includes(low) && strSet.includes(high));
+
+  const [lowS, upS, offset] = pick(validPairs);
+  const fLow = randInt(0, TOTAL_FRETS - offset);
+  const fUp = fLow + offset;
+  return [lowS, fLow, upS, fUp];
+}
+
+
 function genTT(strSet){const validPairs=[[6,5,1],[5,4,1],[4,3,1],[3,2,0],[2,1,1]];const[lowS,upS,offset]=pick(validPairs.filter(p=>strSet.includes(p[0])&&strSet.includes(p[1])));const fLow=randInt(0,TOTAL_FRETS-offset-1);return[lowS,fLow,upS,fLow+offset];}
 
 let score=0,timeLeft=GAME_SECONDS,timer=null,gameActive=false;
