@@ -130,35 +130,25 @@ def game():
         flash("Please log in to play.")
         return redirect(url_for("login"))
 
+    level = request.args.get("level", 1, type=int)
+    forced_interval = request.args.get("interval")  # e.g. "P4"
+
     user_id = session["user_id"]
 
-    # Handle deleted DB or invalid session
-    with get_db() as conn:
-        user = conn.execute("SELECT username FROM users WHERE id=?", (user_id,)).fetchone()
-
-    if not user:
-        session.clear()
-        flash("Your session is no longer valid. Please log in again.")
-        return redirect(url_for("login"))
-
-    username = user[0]
-
-    # 🧭 Level selection via query parameter (?level=2)
-    try:
-        level = int(request.args.get("level", 1))
-    except ValueError:
-        level = 1
-
-    # Get best score for this user + level
+    # fetch the best score for this level
     with get_db() as conn:
         row = conn.execute(
-            "SELECT best_score FROM scores WHERE user_id=? AND level=?",
+            "SELECT best_score FROM scores WHERE user_id = ? AND level = ?",
             (user_id, level)
         ).fetchone()
+        best_score = row[0] if row else 0
 
-    best_score = row[0] if row else 0
-
-    return render_template("intervals.html", username=username, level=level, best_score=best_score)
+    return render_template(
+        "intervals.html",
+        best_score=best_score,
+        level=level,
+        forced_interval=forced_interval
+    )
 
 @app.route("/submit_score", methods=["POST"])
 def submit_score():
