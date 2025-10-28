@@ -132,8 +132,8 @@
   <div class="game-controls" id="controlButtons">
     <button data-key="1">UNISON (1)</button>
     <button data-key="4">PERFECT 4th (4)</button>
-    <button data-key="5">PERFECT 5th (5)</button>
     <button data-key="t">TRITONE (T)</button>
+    <button data-key="5">PERFECT 5th (5)</button>
     <button data-key="8">OCTAVE (8)</button>
   </div>
 </div>
@@ -221,15 +221,29 @@ function genP5(strSet) {
   return [lowS, fLow, upS, fHigh];
 }
 
-// P8 (octave fix)
-function genP8(strSet){
-  const pairs=[];
-  for(let i=0;i<strSet.length-2;i++)pairs.push([strSet[i],strSet[i+2]]);
-  const[lowS,upS]=pick(pairs);
-  const fLow=randInt(0,TOTAL_FRETS-2);
-  let fHigh=fLow+2;
-  if(lowS===4&&upS===2){fHigh=fLow+3;} // D→B correction
-  return[lowS,fLow,upS,fHigh];
+// P8 (octave fix for all B-string crossings)
+function genP8(strSet) {
+  const pairs = [];
+  for (let i = 0; i < strSet.length - 2; i++) {
+    pairs.push([strSet[i], strSet[i + 2]]);
+  }
+
+  const [lowS, upS] = pick(pairs);
+  const fLow = randInt(0, TOTAL_FRETS - 2);
+  let fHigh = fLow + 2; // normal octave shape
+
+  // 🎯 Adjust if the octave crosses the B string tuning gap
+  // These spans all cross over the B string boundary: D→B, G→E, or G→B directly
+  if (
+    (lowS === 4 && upS === 2) || // D → B
+    (lowS === 3 && upS === 1) || // G → E
+    (lowS === 3 && upS === 2) || // G → B
+    (lowS === 2 && upS === 1)    // B → E
+  ) {
+    fHigh = fLow + 3; // compensate with +1 fret
+  }
+
+  return [lowS, fLow, upS, fHigh];
 }
 
 // Tritone
