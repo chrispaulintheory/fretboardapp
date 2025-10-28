@@ -203,12 +203,22 @@ function genP4(strSet){
 }
 
 // P5
-function genP5(strSet){
-  const pairs=[];
-  for(let i=0;i<strSet.length-1;i++)pairs.push([strSet[i],strSet[i+1]]);
-  const[lowS,upS]=pick(pairs);
-  const fLow=randInt(0,TOTAL_FRETS-2);
-  return[lowS,fLow,upS,fLow+2];
+function genP5(strSet) {
+  const pairs = [];
+  for (let i = 0; i < strSet.length - 1; i++) {
+    pairs.push([strSet[i], strSet[i + 1]]);
+  }
+
+  const [lowS, upS] = pick(pairs);
+  const fLow = randInt(0, TOTAL_FRETS - 2);
+  let fHigh = fLow + 2; // typical 5th relationship (two frets up on next string)
+
+  // 🎯 G→B correction (+1 fret for true perfect 5th)
+  if (lowS === 3 && upS === 2) {
+    fHigh = fLow + 3;
+  }
+
+  return [lowS, fLow, upS, fHigh];
 }
 
 // P8 (octave fix)
