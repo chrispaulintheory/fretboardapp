@@ -101,25 +101,25 @@ def profile():
 
     user_id = session["user_id"]
 
-    # Make sure this user still exists
+    # 🧩 Make sure the user still exists (handle deleted DBs gracefully)
     with get_db() as conn:
         user = conn.execute("SELECT username FROM users WHERE id=?", (user_id,)).fetchone()
 
     if not user:
-        # User no longer exists (e.g., after DB reset)
         session.clear()
-        flash("Your account session is invalid. Please log in again.")
+        flash("Your session is no longer valid. Please log in again.")
         return redirect(url_for("login"))
 
     username = user[0]
 
-    # Fetch best scores per level
+    # 🎯 Fetch all best scores per level for this user
     with get_db() as conn:
         rows = conn.execute(
-            "SELECT level, best_score FROM scores WHERE user_id=? ORDER BY level",
+            "SELECT level, best_score FROM scores WHERE user_id = ? ORDER BY level",
             (user_id,)
         ).fetchall()
 
+    # Convert rows -> dict for easy display
     best_scores = {row[0]: row[1] for row in rows}
 
     return render_template("profile.html", username=username, best_scores=best_scores)

@@ -3,11 +3,17 @@
 <h2>Welcome, {{ username }}!</h2>
 <p>You’re now logged in.</p>
 
-<p><strong>Your best interval score:</strong> {{ best_score }}</p>
+<h3>Your best interval scores:</h3>
+<ul>
+  {% if best_scores %}
+    {% for level, score in best_scores.items() %}
+      <li>Level {{ level }} → {{ score }}</li>
+    {% endfor %}
+  {% else %}
+    <li>No scores yet — play a game to record your first best score 🎸</li>
+  {% endif %}
+</ul>
 
-<p>
-  <a href="{{ url_for('game') }}">🎮 Play Interval Trainer</a>
-</p>
-
+<a href="{{ url_for('game') }}">🎮 Play Interval Trainer</a><br><br>
 <a href="{{ url_for('logout') }}">Logout</a>
 {% endblock %}
